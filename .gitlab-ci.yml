@@ -1,0 +1,31 @@
+stages:
+  - test
+  - build
+  
+test:
+  stage: test
+  image: python:2.7-alpine3.9
+  script:    
+    - pip install -r requirements.txt
+    - pip install bandit safety
+    - bandit -f json -o sast-result.json -r app.py || true
+    - safety check -r requirements.txt --json > sca-result.json || true
+  artifacts:
+    paths:
+      - sast-result.json
+      - sca-result.json
+
+build:
+  image: docker:latest
+  stage: build
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+  script:
+    - echo "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+    - docker build --pull -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA" .
+    - docker push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHA"
+
+    
+
